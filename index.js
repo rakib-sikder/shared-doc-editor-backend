@@ -55,7 +55,10 @@ const database = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    sharedWith: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    sharedWith: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+        role: { type: String, enum: ['viewer', 'editor'], default: 'viewer' }
+    }]
   },
   { timestamps: true }
 );
@@ -83,7 +86,8 @@ apiRouter.post("/signup", async (req, res) => {
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-    res.status(201).json(token);
+    console.log("User created successfully:", user._id);
+    res.status(201).json(token , user._id);
   } catch (error) {
     console.error("Error creating user:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -106,13 +110,12 @@ apiRouter.post("/login", async (req, res) => {
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-    res.status(200).json({ token });
+    res.status(200).json({ token,userId: user._id });
   } catch (error) {
     console.error("Error logging in:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
-
 // fetching all documents of a user
 apiRouter.get("/documents", verifyToken, async (req, res) => {
   try {
@@ -129,6 +132,7 @@ apiRouter.get("/documents", verifyToken, async (req, res) => {
 // creating a new document
 apiRouter.post("/documents", verifyToken, async (req, res) => {
   const { title, content } = req.body;
+  console.log("new document created",req.userId);
   try {
     const newDocument = new Document({
       title,
@@ -185,24 +189,49 @@ apiRouter.put("/documents/:id", verifyToken, async (req, res) => {
 // sharing a document with another user
 apiRouter.post("/documents/:id/share", verifyToken, async (req, res) => {
   const { id } = req.params;
-  const { userId } = req.body;
+  const { email, role } = req.body;
+  const userToShareWith = await User.findOne({ email: email });
   try {
     const document = await Document.findById(id);
     if (!document) {
       return res.status(404).json({ message: "Document not found" });
-    }
+    } 
     if (document.owner.toString() !== req.userId) {
-      return res
-        .status(403)
-        .json({ message: "You do not have permission to share this document" });
+      return res.status(403).json({ message: "You do not own this document" });
     }
-    if (!document.sharedWith.includes(userId)) {
-      document.sharedWith.push(userId);
-      await document.save();
+    if (!userToShareWith) {
+      return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json({ message: "Document shared successfully" });
+    const alreadyShared = document.sharedWith.some(
+      (share) => share.user.toString() === userToShareWith._id.toString()
+    );
+    if (alreadyShared) {
+      return res.status(400).json({ message: "Document already shared with this user" });
+    }
+    document.sharedWith.push({
+      user: userToShareWith._id,
+      role: role || "viewer", 
+    }); 
+    await document.save();
+    res.status(200).json({ message: "Document shared successfully" })
   } catch (error) {
     console.error("Error sharing document:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// get my shared with me documents
+apiRouter.get("/shared-documents", verifyToken, async (req, res) => {
+  try {
+    const documents = await Document.find({
+      $or: [ { "sharedWith.user": req.userId }],
+    })
+      .populate("owner", "fullName profilePic") // Get details of the owner
+      .sort({ updatedAt: -1 }); // Sort by most recently updated
+
+    res.status(200).json(documents);
+  } catch (error) {
+    console.error("Error fetching documents:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
