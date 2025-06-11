@@ -64,6 +64,7 @@ const Document = mongoose.model("Document", database);
 const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
+// signup route
 apiRouter.post("/signup",async (req,res)=>{
   const {fullName,email,password}= req.body
   try{
@@ -93,6 +94,8 @@ apiRouter.post("/signup",async (req,res)=>{
 
 })
 
+// login route
+
 apiRouter.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -114,7 +117,7 @@ apiRouter.post("/login", async (req, res) => {
   }
 })
 
-
+// fetching all documents of a user
 apiRouter.get("/documents", verifyToken, async (req, res) => {
   try {
     const documents = await Document.find({ owner: req.userId }).populate("owner", "fullName profilePic");
@@ -124,7 +127,7 @@ apiRouter.get("/documents", verifyToken, async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 })
-
+// creating a new document
 apiRouter.post("/documents", verifyToken, async (req, res) => {
   const { title, content } = req.body;
   try {
@@ -133,6 +136,7 @@ apiRouter.post("/documents", verifyToken, async (req, res) => {
       content,
       owner: req.userId,
     });
+    console.log (req.userId);
     await newDocument.save();
     res.status(201).json(newDocument);
   } catch (error) {
@@ -140,7 +144,7 @@ apiRouter.post("/documents", verifyToken, async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
-
+//get spacific document by id
 apiRouter.get("/documents/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   try {
@@ -155,6 +159,26 @@ apiRouter.get("/documents/:id", verifyToken, async (req, res) => {
   }
 });
 
+// updating a document
+
+apiRouter.put("/documents/:id", verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+  try {
+    const updatedDocument = await Document.findByIdAndUpdate(
+      id,
+      { title, content },
+      { new: true }
+    ).populate("owner", "fullName profilePic");
+    if (!updatedDocument) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+    res.status(200).json(updatedDocument);
+  } catch (error) {
+    console.error("Error updating document:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+})
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
