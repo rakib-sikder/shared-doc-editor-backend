@@ -236,6 +236,26 @@ apiRouter.get("/shared-documents", verifyToken, async (req, res) => {
   }
 });
 
+// delete a document
+apiRouter.delete("/documents/:id", verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const document = await Document.findById(id);
+    if (!document) {
+      return res.status(404).json({ message: "Document not found" });
+    } 
+    if (document.owner.toString() !== req.userId) {
+      return res.status(403).json({ message: "You do not own this document" });
+    }
+    await Document.findByIdAndDelete(id);
+    res.status(200).json({ message: "Document deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+);  
+
 // socket.io setup
 const io = new Server(server, {
   cors: {
