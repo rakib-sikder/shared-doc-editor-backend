@@ -25,7 +25,8 @@ const UserSchema = new mongoose.Schema(
     fullName: { type: String, required: true },
     profilePic: { type: String, default: "https://i.pravatar.cc/150" },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true }
+    
   },
   { timestamps: true }
 );
@@ -38,7 +39,7 @@ const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
 
-apiRouter.post("",async (req,res)=>{
+apiRouter.post("/signup",async (req,res)=>{
   const {fullName,email,password}= req.body
   try{
     const existingUser =await User.findOne({email});
@@ -50,12 +51,16 @@ apiRouter.post("",async (req,res)=>{
       fullName,
       email,
       password: await bcrypt.hash(password, 10),
+      
     });
     await user.save();
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+      expiresIn: "1d"});
+      res.status(201).json(token);
+    
+     
+        
 
   }
   catch (error) {
