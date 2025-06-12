@@ -67,6 +67,10 @@ const Document = mongoose.model("Document", database);
 const apiRouter = express.Router();
 app.use("/api", apiRouter);
 
+apiRouter.get("/", (req, res) => {
+  res.status(200).json({ message: "Welcome to the Shared Document Editor API" });
+});
+
 // signup route
 apiRouter.post("/signup", async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -282,5 +286,6 @@ io.on('connection', (socket) => {
   });
 });
 server.listen(PORT, () => {
+
   console.log(`Server is running on http://localhost:${PORT}`);
 });
