@@ -259,29 +259,28 @@ apiRouter.delete("/documents/:id", verifyToken, async (req, res) => {
 // socket.io setup
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
+    origin: '*', // For production, change to your frontend URL
+    methods: ['GET', 'POST'],
   },
 });
 
-io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
 
-  socket.on("joinDocument", (docId) => {
+  socket.on('join-document', (docId) => {
     socket.join(docId);
-    console.log(`User ${socket.id} joined document ${docId}`);
+    console.log(` joined room: ${docId}`);
   });
 
-  socket.on("editDocument", ({ docId, content }) => {
-    socket.to(docId).emit("documentUpdated", content);
-    console.log(`Document ${docId} updated by ${socket.id}`);
+  socket.on('text-change', (delta, docId ) => {
+    socket.to(docId).emit('receive-text-change', delta);
+    console.log(`Text change in document ${docId} by ${socket.id}:`, delta);
   });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
   });
 });
-
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
